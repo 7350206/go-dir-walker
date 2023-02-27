@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"path/filepath"
 )
@@ -23,4 +24,18 @@ func filterOut(path, ext string, minSize int64, info os.FileInfo) bool {
 func listFile(path string, out io.Writer) error {
 	_, err := fmt.Fprintln(out, path)
 	return err
+}
+
+// receives one argument: the file path to be deleted.
+// return the potential error from os.Remove directly
+// as the return value of function.
+// if os.Remove fails to delete the file, its error will bubble up,
+// stopping the tool’s execution and showing the error message to the user.
+func delFile(path string, delLogger *log.Logger) error {
+	// return os.Remove(path)
+	if err := os.Remove(path); err != nil {
+		return err
+	}
+	delLogger.Println(path)
+	return nil
 }
