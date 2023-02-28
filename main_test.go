@@ -91,6 +91,8 @@ func TestRunDelExtension(t *testing.T) {
 				logBuffer bytes.Buffer
 			)
 
+			tc.cfg.wLog = &logBuffer
+
 			tempDir, cleanup := createTempDir(t, map[string]int{
 				tc.cfg.ext:     tc.nDelete,
 				tc.extNoDelete: tc.nNoDelete,
@@ -119,6 +121,20 @@ func TestRunDelExtension(t *testing.T) {
 			}
 			if len(filesLeft) != tc.nNoDelete {
 				t.Errorf("expected %d filesleft, got %d instead\n", tc.nNoDelete, len(filesLeft))
+			}
+
+			// verify the log output.
+			// since fn adds a log line for each deleted file,
+			// can count the number of lines in the log output
+			// and compare it to the number of deleted files
+			// plus one for the final new line added to the end.
+			// If they don’t match, the test fails.
+			// To count the lines, use the bytes.Split fn passing \n as an argument.
+			// This fn outputs a slice so use the built-in len function to get length.
+			expLogLines := tc.nDelete + 1
+			lines := bytes.Split(logBuffer.Bytes(), []byte("\n"))
+			if len(lines) != expLogLines {
+				t.Errorf("expected %d log lines, got %d instead\n", expLogLines, len(lines))
 			}
 
 		})

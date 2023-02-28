@@ -112,6 +112,7 @@ func main() {
 		// which means you can use it as the value for the wLog field
 		// in the config struct.
 		f, err := os.OpenFile(*logFile, os.O_APPEND|os.O_CREATE|os.O_RDWR, 0644)
+		// f.???
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
