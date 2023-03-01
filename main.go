@@ -23,7 +23,8 @@ type config struct {
 	del  bool
 	// make code flexible, accepting a file in the main program
 	// or a buffer that can use while testing the tool.
-	wLog io.Writer // log destination
+	wLog    io.Writer // log destination
+	archive string
 }
 
 // descend dir by root and find all diles and sub-dirs on it
@@ -57,6 +58,13 @@ func run(root string, out io.Writer, cfg config) error {
 				return listFile(path, out)
 			}
 
+			// archive files and continue if successful
+			if cfg.archive != "" {
+				if err := archiveFile(cfg.archive, root, path); err != nil {
+					return err
+				}
+			}
+
 			// check if the variable cfg.del is set, and, if so,
 			// call the delFile function to delete the file.
 			if cfg.del {
@@ -80,6 +88,7 @@ func main() {
 	ext := flag.String("ext", "", "File extension to filter out")
 	size := flag.Int64("size", 0, "Minimum file size")
 	del := flag.Bool("del", false, "Delete files")
+	archive := flag.String("archive", "", "Archive dir")
 
 	// default is "", so if not specify - send output to STDOUT
 	logFile := flag.String("log", "", "Log deleted to that file")
@@ -88,11 +97,12 @@ func main() {
 
 	// instance of config
 	c := config{
-		ext:  *ext,
-		size: *size,
-		list: *list,
-		del:  *del, // mapping the field del to the flag value so that it’s passed to run()
-		wLog: f,
+		ext:     *ext,
+		size:    *size,
+		list:    *list,
+		del:     *del, // mapping the field del to the flag value so that it’s passed to run()
+		wLog:    f,
+		archive: *archive,
 	}
 
 	// check for errors and print error to stderr if any

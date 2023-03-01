@@ -11,6 +11,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -49,6 +50,112 @@ func TestRun(t *testing.T) {
 
 			if tc.expected != res {
 				t.Errorf("expected %q, got %q instead\n", tc.expected, res)
+			}
+
+		})
+	}
+
+}
+
+func TestRunArchive(t *testing.T) {
+	testCases := []struct {
+		name         string
+		cfg          config
+		extNoArchive string
+		nArchive     int
+		nNoArchive   int
+	}{
+		{name: "ArchiveExtensionNoMatch",
+			cfg:          config{ext: ".log"},
+			extNoArchive: ".gz", nArchive: 0, nNoArchive: 10},
+		{name: "ArchiveExtensionMatch",
+			cfg:          config{ext: ".log"},
+			extNoArchive: "", nArchive: 10, nNoArchive: 0},
+		{name: "ArchiveExtensionMixed",
+			cfg:          config{ext: ".log"},
+			extNoArchive: ".gz", nArchive: 5, nNoArchive: 5},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// define a buffer variable to capture the output of the tool
+			var buffer bytes.Buffer
+
+			// in this case, use createTempDir to create both the origin directory
+			// and the archiving directory.
+			tempDir, cleanup := createTempDir(t, map[string]int{
+				tc.cfg.ext:      tc.nArchive,
+				tc.extNoArchive: tc.nNoArchive,
+			})
+			defer cleanup()
+
+			// create the temporary archive directory using the helper function,
+			// provide a value of nil as the file map input
+			// since we don’t need any files in this directory.
+			archiveDir, cleanupArchive := createTempDir(t, nil)
+			defer cleanupArchive()
+
+			// Assign the archiveDir variable containing the name of the archive dir
+			// to the field tc.cfg.archive to be used as input for the function run.
+			tc.cfg.archive = archiveDir
+
+			// - If the run function returns an error, we fail the test
+			// using t.Fata() from the testing type.
+			// - Assuming the func completes successfully,
+			// we validate the output content and the number of files archived.
+			if err := run(tempDir, &buffer, tc.cfg); err != nil {
+				t.Fatal(err)
+			}
+
+			// - The archiving feature outputs the name of each archived file,
+			// so need a list of files that expect to be archived
+			// to compare with the actual results.
+			// Since the test creates the directory and files dynamically for each test,
+			// you don’t have the name of the files beforehand.
+			// - Create this list dynamically by reading the data from the temp dir.
+			// Use the Glob() from the filepath package to find all file names
+			// from the tempDir that match the archiving extension.
+			// Use Join() from the filepath package to concatenate the pattern
+			// with the temporary directory path:
+			pattern := filepath.Join(tempDir, fmt.Sprintf("*%s", tc.cfg.ext))
+			expFiles, err := filepath.Glob(pattern)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			// create the final list as a string to compare with the output,
+			// use the strings.Join() to join each file path in the expFiles slice
+			// with the newline character:
+			expOut := strings.Join(expFiles, "\n")
+
+			// Before comparing the two values,
+			// remove the last new line from the output by using the strings.TrimSpace()
+			// on the output variable buffer.
+			// use the String() from the bytes.Buffer type to extract the content
+			// of the buffer as a string.
+			res := strings.TrimSpace(buffer.String())
+
+			// compare the expected output expOut with the actual output res,
+			// failing the test if they don’t match:
+			if expOut != res {
+				t.Errorf("expected %q, got %q instead\n", expOut, res)
+			}
+
+			// validate the number of files archived.
+			// Start by reading the content of the temporary archive dir archiveDir,
+			//  using the ReadDir() again.
+			// Store the results into the slice filesArchived:
+			filesArchived, err := ioutil.ReadDir(archiveDir)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			// compare the number of files archived with the expected number of files
+			// that should be archived, tc.nArchive,
+			// failing the test if they don’t match.
+			// Use the len() to obtain the number of files in the filesArchived slice:
+			if len(filesArchived) != tc.nArchive {
+				t.Errorf("expected %d files archived, got %d files instead\n", filesArchived, tc.nArchive)
 			}
 
 		})
